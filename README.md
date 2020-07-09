@@ -12,4 +12,9 @@ than what is being shown in the course.
 If anybody reads this, feel free to look over the code and see if you see anything bizarre that
 might be causing the different values issue.
 
+I'm very new to github, and how the whole github process works. 
+
+
 Thanks
+
+
