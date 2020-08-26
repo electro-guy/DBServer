@@ -1,19 +1,25 @@
 package com.mixer.raw;
 
+import com.mixer.exceptions.DuplicateNameException;
+
 import java.io.*;
 
-public class FileHandler {
-    private RandomAccessFile dbFile;
+public class FileHandler extends BaseFileHandler {
+
 
     public FileHandler(final String dbFileName) throws FileNotFoundException {
-        this.dbFile = new RandomAccessFile(dbFileName, "rw");
+        super(dbFileName);
     }
 
     public boolean add(String name,
-                       int age,
-                       String address,
-                       String carPlateNumber,
-                       String description) throws IOException {
+                    int age,
+                    String address,
+                    String carPlateNumber,
+                    String description) throws IOException, DuplicateNameException {
+        if (Index.getInstance().hasNameInIndex(name)) {
+            throw new DuplicateNameException(String.format("Name '%s' already exists!", name));
+        }
+
         // seek to the end of the file
         long currentPositionToInsert = this.dbFile.length();
         this.dbFile.seek(currentPositionToInsert);
@@ -64,93 +70,25 @@ public class FileHandler {
         this.dbFile.write(description.getBytes());
 
         Index.getInstance().add(currentPositionToInsert);
+        Index.getInstance().addNameToIndex(name, Index.getInstance().getTotalNumberOfRows()-1);
 
         return true;
     }
 
-    public Person readRow(int rowNumber) throws IOException {
+    public Person readRow(long rowNumber) throws IOException {
         long bytePosition = Index.getInstance().getBytePosition(rowNumber);
         if (bytePosition == -1) {
             return null;
         }
 
         byte[] row = this.readRawRecord(bytePosition);
-        Person person = new Person();
+
         DataInputStream stream = new DataInputStream(new ByteArrayInputStream(row));
 
-        int nameLength = stream.readInt();
-        byte[] b = new byte[nameLength];
-        stream.read(b);
-        person.name = new String(b);
-
-        // age
-        person.age = stream.readInt();
-
-        // address
-        b = new byte[stream.readInt()];
-        stream.read(b);
-        person.address = new String(b);
-
-        // carplatenum
-        b = new byte[stream.readInt()];
-        stream.read(b);
-        person.carPlateNumber = new String(b);
-
-        // description
-        b = new byte[stream.readInt()];
-        stream.read(b);
-        person.description = new String(b);
-
-        return person;
-
+        return this.readFromByteStream(stream);
     }
 
-    private byte[] readRawRecord(long bytePositionOfRow) throws IOException {
-        this.dbFile.seek(bytePositionOfRow);
-        if (this.dbFile.readBoolean())
-            return new byte[0];
-        this.dbFile.seek(bytePositionOfRow + 1);
-        int recordLength = this.dbFile.readInt();
-        this.dbFile.seek(bytePositionOfRow + 5);
-
-        byte[] data = new byte[recordLength];
-        this.dbFile.read(data);
-
-        return data;
-    }
-
-    public void loadAllDataToIndex() throws IOException {
-        if (this.dbFile.length() == 0)
-            return;
-
-        long currentPos = 0;
-        long rowNum = 0;
-        long deletedRows = 0;
-
-        while(currentPos < dbFile.length()) {
-            this.dbFile.seek(currentPos);
-            boolean isDeleted = this.dbFile.readBoolean();
-            if (!isDeleted) {
-                Index.getInstance().add(currentPos);
-                rowNum++;
-            }
-            else
-                deletedRows++;
-            currentPos += 1;
-            this.dbFile.seek(currentPos);
-            int recordLength = this.dbFile.readInt();
-            currentPos += 4;
-            currentPos += recordLength;
-        }
-        System.out.println("After startup: Total row number in database: " + rowNum);
-        System.out.println("After startup: Total deleted row number in database: " + deletedRows);
-    }
-
-    public void close() throws IOException {
-        this.dbFile.close();
-    }
-
-    public void deleteRow(int rowNumber) throws IOException {
+    public void deleteRow(long rowNumber) throws IOException {
         long bytePositionOfRecord = Index.getInstance().getBytePosition(rowNumber);
         if (bytePositionOfRecord == -1) {
             throw new IOException("Row does not exist in Index");
@@ -160,5 +98,23 @@ public class FileHandler {
 
         // update the index
         Index.getInstance().remove(rowNumber);
+    }
+
+    public void update(long rowNumber, String name,
+                       int age,
+                       String address,
+                       String carPlateNumber,
+                       String description) throws IOException, DuplicateNameException {
+        this.deleteRow(rowNumber);
+        this.add(name, age, address, carPlateNumber, description);
+    }
+
+    public void update(final String nameToModify, String name,
+                       int age,
+                       String address,
+                       String carPlateNumber,
+                       String description) throws IOException, DuplicateNameException {
+        long rowNumber = Index.getInstance().getRowNumberByName(nameToModify);
+        this.update(rowNumber, name, age, address, carPlateNumber, description);
     }
 }

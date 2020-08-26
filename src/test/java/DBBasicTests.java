@@ -1,5 +1,6 @@
 import com.mixer.dbserver.DB;
 import com.mixer.dbserver.DBServer;
+import com.mixer.exceptions.DuplicateNameException;
 import com.mixer.raw.Index;
 import com.mixer.raw.Person;
 import org.junit.After;
@@ -18,9 +19,11 @@ public class DBBasicTests {
     @Test
     public void testAdd() {
         try {
-            this.db.add("John", 44, "Berlin", "www-404", "This is a description");
+            Person p = new Person("John", 44, "Berlin", "www-404", "This is a description");
+
+            this.db.add(p);
             Assert.assertEquals(Index.getInstance().getTotalNumberOfRows(), 1);
-        } catch (IOException e) {
+        } catch (IOException | DuplicateNameException e) {
             Assert.fail();
         }
     }
@@ -28,7 +31,9 @@ public class DBBasicTests {
     @Test
     public void testRead() {
         try {
-            this.db.add("John", 44, "Berlin", "www-404", "This is a description");
+            Person p = new Person("John", 44, "Berlin", "www-404", "This is a description");
+
+            this.db.add(p);
             Assert.assertEquals(Index.getInstance().getTotalNumberOfRows(), 1);
             Person person = this.db.read(0);
             Assert.assertEquals(person.name, "John");
@@ -37,7 +42,7 @@ public class DBBasicTests {
             Assert.assertEquals(person.description, "This is a description");
 
 
-        } catch (IOException e) {
+        } catch (IOException | DuplicateNameException e) {
             Assert.fail();
         }
     }
@@ -45,12 +50,14 @@ public class DBBasicTests {
     @Test
     public void testDelete() {
         try {
-            this.db.add("John", 44, "Berlin", "www-404", "This is a description");
+            Person p = new Person("John", 44, "Berlin", "www-404", "This is a description");
+
+            this.db.add(p);
             Assert.assertEquals(Index.getInstance().getTotalNumberOfRows(), 1);
             this.db.delete(0);
             Assert.assertEquals(Index.getInstance().getTotalNumberOfRows(), 0);
 
-        } catch (IOException e) {
+        } catch (IOException | DuplicateNameException e) {
             Assert.fail();
         }
     }
